@@ -19,7 +19,8 @@ public class WGListenerLegacy implements Listener {
 
 	@EventHandler
 	public final void onWGPvPCancel(final DisallowedPVPEvent event) { // NO_UCD
-		if (event.getAttacker().hasMetadata("NPC") || event.getDefender().hasMetadata("NPC"))
+		if (event.getAttacker().hasMetadata("NPC") || event.getDefender().hasMetadata("NPC")
+				|| !event.getAttacker().canSee(event.getDefender()))
 			return;
 		if (ph.checkProtection(event.getAttacker(), event.getDefender()).type() == ProtectionType.FAIL_OVERRIDE) {
 			event.setCancelled(true);

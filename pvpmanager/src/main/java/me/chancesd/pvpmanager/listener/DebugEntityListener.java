@@ -86,6 +86,13 @@ public class DebugEntityListener implements Listener {
 
 		final Player attacker = getAttacker(event.getDamager());
 		final Player attacked = (Player) event.getEntity();
+		if (attacker == null)
+			return;
+		if (!attacker.canSee(attacked)) {
+			event.setCancelled(true);
+			Log.debug("Blocking damage to a player hidden from the attacker");
+			return;
+		}
 		final ProtectionResult result = ph.checkProtection(attacker, attacked);
 
 		if (result.isProtected()) {
@@ -101,7 +108,11 @@ public class DebugEntityListener implements Listener {
 		if (!CombatUtils.isPvP(event) || CombatUtils.isWorldExcluded(event.getEntity().getWorld().getName()) || !event.isCancelled())
 			return;
 
-		final ProtectionResult protectionResult = ph.checkProtection(getAttacker(event.getDamager()), (Player) event.getEntity());
+		final Player attacker = getAttacker(event.getDamager());
+		final Player attacked = (Player) event.getEntity();
+		if (attacker == null || !attacker.canSee(attacked))
+			return;
+		final ProtectionResult protectionResult = ph.checkProtection(attacker, attacked);
 		if (protectionResult.type() == ProtectionType.FAIL_OVERRIDE) {
 			event.setCancelled(false);
 			Log.debug("Force allowing PvP even though a plugin blocked it because a player has override or Vulnerable is enabled");
@@ -114,6 +125,8 @@ public class DebugEntityListener implements Listener {
 			return;
 		final Player attacker = getAttacker(event.getDamager());
 		final Player attacked = (Player) event.getEntity();
+		if (attacker == null || !attacker.canSee(attacked))
+			return;
 
 		onDamageActions(attacker, attacked);
 		Log.debug("Finished processing damage.");
@@ -124,7 +137,11 @@ public class DebugEntityListener implements Listener {
 		if (!CombatUtils.isPvP(event) || CombatUtils.isWorldExcluded(event.getEntity().getWorld().getName()) || !event.isCancelled())
 			return;
 
-		final ProtectionResult protectionResult = ph.checkProtection(getAttacker(event.getDamager()), (Player) event.getEntity());
+		final Player attacker = getAttacker(event.getDamager());
+		final Player attacked = (Player) event.getEntity();
+		if (attacker == null || !attacker.canSee(attacked))
+			return;
+		final ProtectionResult protectionResult = ph.checkProtection(attacker, attacked);
 		if (protectionResult.isVulnerable()) {
 			Log.debug("Damage was cancelled by another plugin, doing nothing");
 		}
@@ -132,6 +149,9 @@ public class DebugEntityListener implements Listener {
 
 	@SuppressWarnings("null") // defender.getLocation() never null
 	public void onDamageActions(final Player attacker, final Player defender) {
+		if (!attacker.canSee(defender))
+			return;
+
 		final CombatPlayer pvpAttacker = ph.get(attacker);
 		final CombatPlayer pvpDefender = ph.get(defender);
 

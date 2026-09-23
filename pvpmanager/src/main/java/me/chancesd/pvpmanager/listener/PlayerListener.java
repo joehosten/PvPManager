@@ -215,6 +215,11 @@ public class PlayerListener implements Listener {
 			return;
 
 		if (event.getState() == State.CAUGHT_ENTITY && event.getCaught() instanceof final Player caught) {
+			if (!player.canSee(caught)) {
+				event.setCancelled(true);
+				event.getHook().setHookedEntity(null);
+				return;
+			}
 			final ProtectionResult result = playerManager.checkProtection(player, caught);
 			if (result.isProtected()) {
 				event.setCancelled(true);

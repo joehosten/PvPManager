@@ -107,7 +107,7 @@ public class PlayerManager {
 	 * @return true if the attack didn't get blocked or if it got override, otherwise false
 	 */
 	public final boolean canAttack(@NotNull final Player attacker, @NotNull final Player defender) {
-		return checkProtection(attacker, defender).isVulnerable();
+		return attacker.canSee(defender) && checkProtection(attacker, defender).isVulnerable();
 	}
 
 	private final boolean canAttackVulnerable(final CombatPlayer attacker, final CombatPlayer defender) {

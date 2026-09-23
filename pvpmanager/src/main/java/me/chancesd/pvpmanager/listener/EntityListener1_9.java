@@ -80,6 +80,10 @@ public class EntityListener1_9 implements Listener {
 				continue;
 			}
 			final Player attacked = (Player) e;
+			if (!player.canSee(attacked)) {
+				toRemove.add(e);
+				continue;
+			}
 			final ProtectionResult result = ph.checkProtection(player, attacked);
 
 			if (result.isProtected()) {
@@ -117,6 +121,8 @@ public class EntityListener1_9 implements Listener {
 				continue;
 			}
 			final Player attacked = (Player) e;
+			if (!player.canSee(attacked))
+				continue;
 			final ProtectionResult result = ph.checkProtection(player, attacked);
 
 			if (result.isVulnerable()) {

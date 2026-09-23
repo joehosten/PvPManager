@@ -4,22 +4,32 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.RETURNS_MOCKS;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import static org.mockito.Mockito.mockStatic;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.bukkit.entity.AreaEffectCloud;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.TNTPrimed;
+import org.bukkit.entity.ThrownPotion;
 import org.bukkit.entity.Zombie;
+import org.bukkit.event.entity.AreaEffectCloudApplyEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.PotionSplashEvent;
+import org.bukkit.potion.PotionEffect;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -245,6 +255,7 @@ class EntityListenerTest {
 		createAttack(false);
 
 		assertEquals(ProtectionType.FAIL_OVERRIDE, ph.checkProtection(attacker, defender).type());
+		assertTrue(ph.canAttack(attacker, defender));
 		assertTrue(combatAttacker.isInCombat());
 		assertTrue(combatDefender.isInCombat());
 
@@ -295,6 +306,122 @@ class EntityListenerTest {
 		assertEquals(ProtectionType.WORLD_PROTECTION, ph.checkProtection(attacker, defender).type());
 		verify(mockEvent).setCancelled(true);
 		verify(projMockEvent).setCancelled(true);
+	}
+
+	@Test
+	final void hiddenDefenderDoesNotRevealProtection() {
+		combatDefender.getCombatWorld().setCombatAllowed(false);
+		doReturn(false).when(attacker).canSee(defender);
+		mockEvent = createDamageEvent(attacker, defender, false);
+
+		callEvent(mockEvent);
+
+		assertTrue(mockEvent.isCancelled());
+		verifyNoInteractions(attacker.spigot());
+		assertFalse(combatAttacker.isInCombat());
+		assertFalse(combatDefender.isInCombat());
+	}
+
+	@Test
+	final void hiddenDefenderCannotBeHitThroughOverride() {
+		combatAttacker.toggleOverride();
+		doReturn(false).when(attacker).canSee(defender);
+		assertFalse(ph.canAttack(attacker, defender));
+		mockEvent = createDamageEvent(attacker, defender, true);
+
+		callEvent(mockEvent);
+
+		assertTrue(mockEvent.isCancelled());
+		verify(mockEvent, never()).setCancelled(false);
+		assertFalse(combatAttacker.isInCombat());
+		assertFalse(combatDefender.isInCombat());
+	}
+
+	@Test
+	final void hiddenDefenderCannotBeHitInDebugMode() {
+		combatAttacker.toggleOverride();
+		doReturn(false).when(attacker).canSee(defender);
+		mockEvent = createDamageEvent(attacker, defender, false);
+		final DebugEntityListener debugListener = new DebugEntityListener(ph);
+		clearInvocations(mockEvent);
+
+		debugListener.onPlayerDamage(mockEvent);
+		debugListener.onPlayerDamageOverride(mockEvent);
+
+		assertTrue(mockEvent.isCancelled());
+		verify(mockEvent, never()).setCancelled(false);
+		assertFalse(combatAttacker.isInCombat());
+		assertFalse(combatDefender.isInCombat());
+	}
+
+	@Test
+	final void hiddenDefenderIsProtectedFromAttributedDamage() {
+		doReturn(false).when(attacker).canSee(defender);
+		final Projectile projectile = mock(Projectile.class);
+		when(projectile.getShooter()).thenReturn(attacker);
+		final TNTPrimed tnt = mock(TNTPrimed.class);
+		when(tnt.getSource()).thenReturn(attacker);
+		final AreaEffectCloud cloud = mock(AreaEffectCloud.class);
+		when(cloud.getSource()).thenReturn(attacker);
+
+		for (final Entity source : List.of(projectile, tnt, cloud)) {
+			final EntityDamageByEntityEvent event = createDamageEvent(source, defender, false);
+			callEvent(event);
+			assertTrue(event.isCancelled());
+		}
+		verifyNoInteractions(attacker.spigot());
+		assertFalse(combatAttacker.isInCombat());
+		assertFalse(combatDefender.isInCombat());
+	}
+
+	@Test
+	final void hiddenDefenderIsExcludedFromSplashPotion() {
+		doReturn(false).when(attacker).canSee(defender);
+		doReturn(EntityType.PLAYER).when(defender).getType();
+		final ThrownPotion potion = mock(ThrownPotion.class);
+		when(potion.getShooter()).thenReturn(attacker);
+		doReturn(defender.getWorld()).when(potion).getWorld();
+		when(potion.getEffects()).thenReturn(List.of(mock(PotionEffect.class)));
+		final PotionSplashEvent event = mock(PotionSplashEvent.class);
+		when(event.getEntity()).thenReturn(potion);
+		when(event.getPotion()).thenReturn(potion);
+		when(event.getAffectedEntities()).thenReturn(List.of(defender));
+
+		try (var combatUtils = mockStatic(CombatUtils.class)) {
+			combatUtils.when(() -> CombatUtils.isHarmfulPotion(null)).thenReturn(true);
+			damageListener.onPotionSplash(event);
+			damageListener.onPotionSplashMonitor(event);
+		}
+
+		verify(event).setIntensity(defender, 0);
+		verifyNoInteractions(attacker.spigot());
+		assertFalse(combatAttacker.isInCombat());
+		assertFalse(combatDefender.isInCombat());
+	}
+
+	@Test
+	final void hiddenDefenderIsExcludedFromLingeringPotion() {
+		doReturn(false).when(attacker).canSee(defender);
+		doReturn(EntityType.PLAYER).when(defender).getType();
+		final AreaEffectCloud cloud = mock(AreaEffectCloud.class);
+		when(cloud.getSource()).thenReturn(attacker);
+		doReturn(defender.getWorld()).when(cloud).getWorld();
+		final List<LivingEntity> affected = new ArrayList<>(List.of(defender));
+		final AreaEffectCloudApplyEvent event = mock(AreaEffectCloudApplyEvent.class);
+		when(event.getEntity()).thenReturn(cloud);
+		when(event.getAffectedEntities()).thenReturn(affected);
+		final EntityListener1_9 listener = new EntityListener1_9(ph);
+
+		try (var combatUtils = mockStatic(CombatUtils.class)) {
+			combatUtils.when(() -> CombatUtils.hasHarmfulPotion(cloud)).thenReturn(true);
+			listener.onLingeringPotionSplash(event);
+			listener.onLingeringPotionSplashMon(event);
+		}
+
+		assertTrue(affected.isEmpty());
+		verifyNoInteractions(attacker.spigot());
+		assertFalse(combatAttacker.isInCombat());
+		assertFalse(combatDefender.isInCombat());
 	}
 
 	@Test

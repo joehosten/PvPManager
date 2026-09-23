@@ -51,6 +51,10 @@ public class EntityListener1_20_4 implements Listener {
 		}
 		if (attacked == null || attacker == null || attacker.equals(attacked))
 			return;
+		if (!attacker.canSee(attacked)) {
+			event.setCancelled(true);
+			return;
+		}
 		final ProtectionResult result = ph.checkProtection(attacker, attacked);
 		if (result.isProtected()) {
 			event.setCancelled(true);

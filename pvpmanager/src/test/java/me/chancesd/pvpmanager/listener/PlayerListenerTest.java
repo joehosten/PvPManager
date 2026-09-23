@@ -6,12 +6,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
+import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerFishEvent.State;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -74,6 +78,25 @@ class PlayerListenerTest {
 		listener.onPlayerJoin(new PlayerJoinEvent(testPlayer, ""));
 		assertEquals(1, ph.getPlayers().size());
 		assertEquals(testPlayer, ph.getPlayers().values().stream().findFirst().get().getPlayer());
+	}
+
+	@Test
+	void hiddenDefenderCannotBeHooked() {
+		when(attacker.canSee(defender)).thenReturn(false);
+		final FishHook hook = mock(FishHook.class);
+		final PlayerFishEvent event = mock(PlayerFishEvent.class);
+		when(event.getPlayer()).thenReturn(attacker);
+		when(event.getState()).thenReturn(State.CAUGHT_ENTITY);
+		when(event.getCaught()).thenReturn(defender);
+		when(event.getHook()).thenReturn(hook);
+
+		listener.onPlayerFish(event);
+
+		verify(event).setCancelled(true);
+		verify(hook).setHookedEntity(null);
+		verifyNoInteractions(attacker.spigot());
+		assertFalse(combatAttacker.isInCombat());
+		assertFalse(combatDefender.isInCombat());
 	}
 
 	@Test

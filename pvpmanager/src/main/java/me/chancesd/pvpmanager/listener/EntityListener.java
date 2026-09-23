@@ -82,6 +82,10 @@ public class EntityListener implements Listener {
 		final Player attacked = (Player) event.getEntity();
 		if (attacker == null)
 			return;
+		if (!attacker.canSee(attacked)) {
+			event.setCancelled(true);
+			return;
+		}
 
 		final ProtectionResult result = playerHandler.checkProtection(attacker, attacked);
 
@@ -97,7 +101,7 @@ public class EntityListener implements Listener {
 			return;
 
 		final Player attacker = getAttacker(event.getDamager());
-		if (attacker == null)
+		if (attacker == null || !attacker.canSee((Player) event.getEntity()))
 			return;
 		if (playerHandler.checkProtection(attacker, (Player) event.getEntity()).type() == ProtectionType.FAIL_OVERRIDE) {
 			event.setCancelled(false);
@@ -110,6 +114,8 @@ public class EntityListener implements Listener {
 			return;
 		final Player attacker = getAttacker(event.getDamager());
 		final Player attacked = (Player) event.getEntity();
+		if (attacker == null || !attacker.canSee(attacked))
+			return;
 
 		processDamage(attacker, attacked);
 	}
@@ -129,6 +135,10 @@ public class EntityListener implements Listener {
 		final Player attacked = (Player) event.getEntity();
 		if (attacker == null)
 			return;
+		if (!attacker.canSee(attacked)) {
+			event.setCancelled(true);
+			return;
+		}
 
 		if (!playerHandler.canAttack(attacker, attacked)) {
 			event.setCancelled(true);
@@ -137,6 +147,9 @@ public class EntityListener implements Listener {
 
 	@SuppressWarnings("null") // defender.getLocation() never null
 	public void processDamage(final Player attacker, final Player defender) {
+		if (!attacker.canSee(defender))
+			return;
+
 		final CombatPlayer pvpAttacker = playerHandler.get(attacker);
 		final CombatPlayer pvpDefender = playerHandler.get(defender);
 
@@ -202,6 +215,10 @@ public class EntityListener implements Listener {
 				continue;
 			}
 			final Player attacked = (Player) e;
+			if (!player.canSee(attacked)) {
+				event.setIntensity(attacked, 0);
+				continue;
+			}
 			final ProtectionResult result = playerHandler.checkProtection(player, attacked);
 
 			if (result.isProtected()) {
@@ -223,6 +240,8 @@ public class EntityListener implements Listener {
 				continue;
 			}
 			final Player attacked = (Player) e;
+			if (!player.canSee(attacked))
+				continue;
 			processDamage(player, attacked);
 		}
 	}

@@ -490,6 +490,9 @@ public enum Lang implements TimeLangProvider {
 	}
 
 	public static void messageProtection(final ProtectionResult result, final Player player, final Player attacked) {
+		if (!player.canSee(attacked))
+			return;
+
 		final CombatPlayer receiver = plugin.getPlayerManager().get(player);
 		final Lang message = getProtectionMessage(result);
 		if (message != null) {

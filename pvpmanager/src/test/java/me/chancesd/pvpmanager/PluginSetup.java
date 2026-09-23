@@ -99,6 +99,7 @@ public class PluginSetup {
 		Mockito.when(player.getServer()).thenReturn(this.server);
 		Mockito.when(player.getScoreboard()).thenReturn(this.scoreboard);
 		Mockito.when(player.isOnline()).thenReturn(true);
+		doReturn(true).when(player).canSee(ArgumentMatchers.any(Player.class));
 		final PlayerInventory inventory = mock(PlayerInventory.class, Mockito.RETURNS_MOCKS);
 		Mockito.when(player.getInventory()).thenReturn(inventory);
 		final Player.Spigot spigot = mock(Player.Spigot.class);
